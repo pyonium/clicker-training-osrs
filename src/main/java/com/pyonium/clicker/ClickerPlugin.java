@@ -153,7 +153,7 @@ public class ClickerPlugin extends Plugin
 		if(mode.equals(ClickerMode.SESSION_INTERVAL))
 		{
 			//fire when xp after % threshold is smaller than xp before % threshold, this means we passed the threshold
-			if (session.getExperience(skill) % absoluteInterval < (session.getExperience(skill) + xpAfter - xpBefore) % absoluteInterval)
+			if (session.getExperience(skill) % absoluteInterval > (session.getExperience(skill) + xpAfter - xpBefore) % absoluteInterval)
 			{
 				String message = "You got a bunch of " + skill.getName() + " XP! " + praise;
 				sendHighlightedMessage(message);

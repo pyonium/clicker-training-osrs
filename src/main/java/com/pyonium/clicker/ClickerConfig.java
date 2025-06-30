@@ -13,7 +13,7 @@ public interface ClickerConfig extends Config
     )
     default int volume()
     {
-        return 100;
+        return 65;
     }
 
     @ConfigItem(
@@ -62,7 +62,7 @@ public interface ClickerConfig extends Config
 
     @ConfigItem(
             keyName = "levelPartSize",
-            name = "Clicks Per Level",
+            name = "Partial Levels",
             description = "How many times do you want to be rewarded per level?",
             position=41
     )

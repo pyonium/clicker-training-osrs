@@ -21,7 +21,6 @@ import net.runelite.client.plugins.PluginDescriptor;
 import java.io.File;
 
 import net.runelite.client.RuneLite;
-import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
 import net.runelite.client.util.Text;
 
 import java.util.EnumMap;

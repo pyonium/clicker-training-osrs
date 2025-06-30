@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.StatChanged;
+import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
 import net.runelite.client.chat.ChatMessageManager;
@@ -19,10 +20,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 
 import javax.sound.sampled.*;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+
 import net.runelite.client.RuneLite;
 import net.runelite.client.util.Text;
 
@@ -45,6 +43,9 @@ public class ClickerPlugin extends Plugin
 	@Inject
 	private ChatMessageManager chatMessageManager;
 
+	@Inject
+	private AudioPlayer audioPlayer;
+
 	private final Map<Skill, Integer> oldExperience = new EnumMap<>(Skill.class);
 
 	private static final File CUSTOM_SOUNDS_DIR = new File(RuneLite.RUNELITE_DIR.getPath() + File.separator + "clicker");
@@ -55,8 +56,6 @@ public class ClickerPlugin extends Plugin
 	};
 
 	private static final Pattern COLLECTION_LOG_ITEM_REGEX = Pattern.compile("New item added to your collection log:.*");
-
-	private Clip clip = null;
 
 	private boolean onLevel;
 	private boolean onPartLevel;
@@ -69,7 +68,6 @@ public class ClickerPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		initSoundFiles();
 		this.onLevel = config.onLevel();
 		this.onClog = config.onClog();
 		this.volume = config.volume();
@@ -80,8 +78,6 @@ public class ClickerPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		clip.close();
-		clip = null;
 	}
 
 	@Subscribe
@@ -98,8 +94,6 @@ public class ClickerPlugin extends Plugin
 		final int levelBefore = xpBefore == -1 ? -1 : Experience.getLevelForXp(xpBefore);
 
 		oldExperience.put(skill, xpAfter);
-
-		boolean fire = true;
 
 		//fire when threshold is between old xp and new xp (this xp drop passed it or reached it)
 
@@ -134,8 +128,6 @@ public class ClickerPlugin extends Plugin
 			return;
 		}
 
-
-
 	}
 
 	@Subscribe
@@ -159,65 +151,15 @@ public class ClickerPlugin extends Plugin
 		}
 	}
 
-
-	private void initSoundFiles()
-	{
-		if (!CUSTOM_SOUNDS_DIR.exists())
-		{
-			CUSTOM_SOUNDS_DIR.mkdirs();
-		}
-
-		for (File f : SOUND_FILES)
-		{
-			try
-			{
-				if (f.exists()) {
-					continue;
-				}
-				InputStream stream = ClickerPlugin.class.getClassLoader().getResourceAsStream(f.getName());
-				OutputStream out = new FileOutputStream(f);
-				byte[] buffer = new byte[8 * 1024];
-				int bytesRead;
-				while ((bytesRead = stream.read(buffer)) != -1) {
-					out.write(buffer, 0, bytesRead);
-				}
-				out.close();
-				stream.close();
-			}  catch (Exception e) {
-				log.debug(e + ": " + f);
-			}
-		}
-	}
-
 	private void playSound(File f)
 	{
-		try
-		{
-			/* Leaving this removed for now. Calling this too many times causes client to hang.
-			if (clip != null)
-			{
-				clip.close();
-			}
-			 */
+		float vol = volume / 100f;
+		float gain = (float)Math.log10(vol) * 20;
 
-			log.warn(f.getPath());
-			AudioInputStream is = AudioSystem.getAudioInputStream(f);
-			AudioFormat format = is.getFormat();
-			DataLine.Info info = new DataLine.Info(Clip.class, format);
-			clip = (Clip) AudioSystem.getLine(info);
-			clip.open(is);
-
-			//set volume
-			float vol = volume/100.0f;
-			FloatControl gainControl = (FloatControl)clip.getControl(FloatControl.Type.MASTER_GAIN);
-			gainControl.setValue(20.0f * (float) Math.log10(vol));
-
-			clip.start();
-		}
-		catch (LineUnavailableException | UnsupportedAudioFileException | IOException e)
-		{
-			log.warn(f.getName());
-			log.warn("Sound file error", e);
+		try {
+			audioPlayer.play(f, gain);
+		} catch (Exception e) {
+			log.warn("Unable to play sound", e);
 		}
 	}
 

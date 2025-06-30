@@ -18,10 +18,10 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
-import javax.sound.sampled.*;
 import java.io.File;
 
 import net.runelite.client.RuneLite;
+import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
 import net.runelite.client.util.Text;
 
 import java.util.EnumMap;
@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 @PluginDescriptor(
 		name = "Clicker Training"
 )
+
 public class ClickerPlugin extends Plugin
 {
 	@Inject
@@ -51,28 +52,44 @@ public class ClickerPlugin extends Plugin
 	private static final File CUSTOM_SOUNDS_DIR = new File(RuneLite.RUNELITE_DIR.getPath() + File.separator + "clicker");
 	private static final File CLICKER_SOUND_FILE = new File(CUSTOM_SOUNDS_DIR, "clicker.wav");
 
-	private static final File[] SOUND_FILES = new File[]{
-			CLICKER_SOUND_FILE
-	};
-
 	private static final Pattern COLLECTION_LOG_ITEM_REGEX = Pattern.compile("New item added to your collection log:.*");
 
-	private boolean onLevel;
-	private boolean onPartLevel;
-	private boolean onClog;
+	private ClickerSession session;
+
+	//operation settings
+	private ClickerMode mode;
 	private int volume;
-	private boolean onVirtualLevel;
-	private int levelPartSize;
 	private boolean chatMessages;
+	private String praise;
+
+	//level mode
+	private boolean onVirtualLevel;
+	private boolean onPartLevel;
+	private int partialDivisor;
+
+	//interval mode
+	private int absoluteInterval;
+
+	//misc
+	private boolean onClog;
 
 	@Override
 	protected void startUp()
 	{
-		this.onLevel = config.onLevel();
-		this.onClog = config.onClog();
-		this.volume = config.volume();
-		this.onPartLevel = config.onPartLevel();
+		this.session = new ClickerSession();
 
+		this.mode = config.mode();
+		this.volume = config.volume() > 100 ? 100 : config.volume();
+		this.chatMessages = config.chatMessages();
+		this.praise = config.praise();
+
+		this.onVirtualLevel = config.onVirtualLevel();
+		this.onPartLevel = config.onPartLevel();
+		this.partialDivisor = config.partialDivisor();
+
+		this.absoluteInterval = config.absoluteInterval();
+
+		this.onClog = config.onClog();
 	}
 
 	@Override
@@ -82,9 +99,7 @@ public class ClickerPlugin extends Plugin
 
 	@Subscribe
 	public void onStatChanged(StatChanged statChanged) {
-		if (!onLevel) {
-			return;
-		}
+
 		final Skill skill = statChanged.getSkill();
 
 		// Modified from Nightfirecat's virtual level ups plugin as this info isn't (yet?) built in to statChanged event
@@ -95,39 +110,57 @@ public class ClickerPlugin extends Plugin
 
 		oldExperience.put(skill, xpAfter);
 
-		//fire when threshold is between old xp and new xp (this xp drop passed it or reached it)
-
 		// Do not proceed if any of the following are true (sanity checks):
 		//  * xpBefore == -1              (don't fire when first setting new known value)
 		//  * xpAfter <= xpBefore         (do not allow 200m -> 200m exp drops)
-		//  * levelAfter > MAX_REAL_LEVEL && config says don't include virtual (level is virtual and config ignores virtual)
-		if (xpBefore == -1 || xpAfter <= xpBefore || (levelAfter > Experience.MAX_REAL_LEVEL && !onVirtualLevel)) {
+		if (xpBefore == -1 || xpAfter <= xpBefore) {
 			return;
 		}
 
-		//fire if half level is reached
-		if(onPartLevel)
-		{
-			for(int i = 0; i < levelPartSize - 1; i++) {
+		// if the xp is valid, add it to the current session
+		session.xpDrop(skill, xpBefore, xpAfter);
 
-				int partway = Experience.getXpForLevel(levelBefore) + (Experience.getXpForLevel(levelBefore + 1) - Experience.getXpForLevel(levelBefore)) / levelPartSize * (i+1);
+		if(mode.equals(ClickerMode.LEVEL)) {
 
-				if (xpBefore < partway && xpAfter >= partway) {
-					String message = "You're " + (i + 1) + "/" + levelPartSize + " of the way to " + statChanged.getSkill().getName() + " level " + (levelBefore + 1) + "! Good puppy!";
-					sendHighlightedMessage(message);
-					playSound(CLICKER_SOUND_FILE);
-					return;
+			//stop if you don't want virtual levels if you're at that point
+			if(levelAfter > Experience.MAX_REAL_LEVEL && !onVirtualLevel)
+			{
+				return;
+			}
+
+			//fire if partial level is reached
+			if (onPartLevel) {
+				for (int i = 0; i < partialDivisor - 1; i++) {
+
+					int partialXpThreshold = Experience.getXpForLevel(levelBefore) +
+							(Experience.getXpForLevel(levelBefore + 1) - Experience.getXpForLevel(levelBefore)) / partialDivisor * (i + 1);
+
+					if (xpBefore < partialXpThreshold && xpAfter >= partialXpThreshold) {
+						String message = "You're " + (i + 1) + "/" + partialDivisor + " of the way to " + statChanged.getSkill().getName() + " level " + (levelBefore + 1) + "! " + praise;
+						sendHighlightedMessage(message);
+						playSound(CLICKER_SOUND_FILE);
+						return;
+					}
 				}
+			}
+
+			// new level reached
+			if (levelBefore < levelAfter) {
+				playSound(CLICKER_SOUND_FILE);
+				return;
 			}
 		}
 
-		// * levelBefore >= levelAfter (new level is reached)
-		if(levelBefore < levelAfter)
+		if(mode.equals(ClickerMode.SESSION_INTERVAL))
 		{
-			playSound(CLICKER_SOUND_FILE);
-			return;
+			//fire when xp after % threshold is smaller than xp before % threshold, this means we passed the threshold
+			if (session.getExperience(skill) % absoluteInterval < (session.getExperience(skill) + xpAfter - xpBefore) % absoluteInterval)
+			{
+				String message = "You got a bunch of " + skill.getName() + " XP! " + praise;
+				sendHighlightedMessage(message);
+				playSound(CLICKER_SOUND_FILE);
+			}
 		}
-
 	}
 
 	@Subscribe
@@ -146,7 +179,7 @@ public class ClickerPlugin extends Plugin
 		String outputMessage = Text.removeTags(chatMessage.getMessage());
 		if(COLLECTION_LOG_ITEM_REGEX.matcher(outputMessage).matches())
 		{
-			sendHighlightedMessage("A new item in your collection log! Good puppy!");
+			sendHighlightedMessage("A new item in your collection log! " + praise);
 			playSound(CLICKER_SOUND_FILE);
 		}
 	}
@@ -172,13 +205,24 @@ public class ClickerPlugin extends Plugin
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		this.onLevel = config.onLevel();
-		this.onClog = config.onClog();
-		this.volume = config.volume() > 100 ? 100 : config.volume();
-		this.onPartLevel = config.onPartLevel();
-		this.levelPartSize = config.levelPartSize();
-		this.onVirtualLevel = config.onVirtualLevel();
+		//reset session if mode is changed
+		if(!mode.equals(config.mode()))
+		{
+			this.session = new ClickerSession();
+		}
+
+		this.mode = config.mode();
+		this.volume = config.volume();
 		this.chatMessages = config.chatMessages();
+		this.praise = config.praise();
+
+		this.onVirtualLevel = config.onVirtualLevel();
+		this.onPartLevel = config.onPartLevel();
+		this.partialDivisor = config.partialDivisor();
+
+		this.absoluteInterval = config.absoluteInterval();
+
+		this.onClog = config.onClog();
 	}
 
 	private void sendHighlightedMessage(String message) {

@@ -5,11 +5,32 @@ import net.runelite.client.config.*;
 @ConfigGroup("clicker")
 public interface ClickerConfig extends Config
 {
+
+    @ConfigSection(
+            name = "Operation",
+            description = "Settings about the operation of the clicker",
+            position = 1
+    )
+    String OPERATION = "Operation";
+
     @ConfigItem(
+            section = OPERATION,
+            keyName = "mode",
+            name = "Operating Mode",
+            description = "Set the mode of operation: on session experience, or by (part of a) level",
+            position = 1
+    )
+    default ClickerMode mode()
+    {
+        return ClickerMode.LEVEL;
+    }
+
+    @ConfigItem(
+            section = OPERATION,
             keyName = "clickerVolume",
             name = "Volume",
-            description = "How loud does puppy want its reward?",
-            position = 10
+            description = "How loud do you want want your reward?",
+            position = 2
     )
     default int volume()
     {
@@ -17,10 +38,11 @@ public interface ClickerConfig extends Config
     }
 
     @ConfigItem(
+            section = OPERATION,
             keyName = "chatMessages",
             name = "Chat Messages",
             description = "Do you want chat messages?",
-            position = 20
+            position = 3
     )
     default boolean chatMessages()
     {
@@ -28,21 +50,30 @@ public interface ClickerConfig extends Config
     }
 
     @ConfigItem(
-            keyName = "onLevel",
-            name = "Click On Level Up",
-            description = "Rewards level ups",
-            position=30
+            section = OPERATION,
+            keyName = "praise",
+            name = "Praise",
+            description = "The term of endearment used",
+            position = 4
     )
-    default boolean onLevel()
+    default String praise()
     {
-        return true;
+        return "Good puppy!";
     }
 
+    @ConfigSection(
+            name = "Level mode settings",
+            description = "Settings for clicking (parts of) level",
+            position = 10
+    )
+    String LEVEL = "LevelMode";
+
     @ConfigItem(
+            section = LEVEL,
             keyName = "onVirtualLevel",
             name = "Click On Virtual Level",
             description = "For all the maxed puppies out there!",
-            position=35
+            position=12
     )
     default boolean onVirtualLevel()
     {
@@ -50,10 +81,11 @@ public interface ClickerConfig extends Config
     }
 
     @ConfigItem(
+            section = LEVEL,
             keyName = "onPartLevel",
             name = "Click On Partial Level",
             description = "For if it takes too long!",
-            position=40
+            position=13
     )
     default boolean onPartLevel()
     {
@@ -61,14 +93,34 @@ public interface ClickerConfig extends Config
     }
 
     @ConfigItem(
+            section = LEVEL,
             keyName = "levelPartSize",
             name = "Partial Levels",
             description = "How many times do you want to be rewarded per level?",
-            position=41
+            position=14
     )
-    default int levelPartSize()
+    default int partialDivisor()
     {
         return 2;
+    }
+
+    @ConfigSection(
+            name = "Interval mode settings",
+            description = "Settings for clicking on an interval of experience",
+            position = 30
+    )
+    String INTERVAL = "IntervalMode";
+
+    @ConfigItem(
+            section = INTERVAL,
+            keyName = "xpInterval",
+            name = "Experience Interval",
+            description = "How much experience do you want in between clicks?",
+            position=31
+    )
+    default int absoluteInterval()
+    {
+        return 10000;
     }
 
     @ConfigItem(

@@ -23,6 +23,9 @@ import java.io.File;
 import net.runelite.client.RuneLite;
 import net.runelite.client.util.Text;
 
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -51,6 +54,11 @@ public class ClickerPlugin extends Plugin
 	private static final File CUSTOM_SOUNDS_DIR = new File(RuneLite.RUNELITE_DIR.getPath() + File.separator + "clicker");
 	private static final File CLICKER_SOUND_FILE = new File(CUSTOM_SOUNDS_DIR, "clicker.wav");
 
+	private static final File[] SOUND_FILES = new File[]{
+			CLICKER_SOUND_FILE
+	};
+
+
 	private static final Pattern COLLECTION_LOG_ITEM_REGEX = Pattern.compile("New item added to your collection log:.*");
 
 	private ClickerSession session;
@@ -75,6 +83,8 @@ public class ClickerPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
+		initSoundFiles();
+
 		this.session = new ClickerSession();
 
 		this.mode = config.mode();
@@ -94,6 +104,32 @@ public class ClickerPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+	}
+
+	// creates the directory and sound file to be played later
+	private void initSoundFiles() {
+		if (!CUSTOM_SOUNDS_DIR.exists()) {
+			CUSTOM_SOUNDS_DIR.mkdirs();
+		}
+
+		for (File f : SOUND_FILES) {
+			try {
+				if (f.exists()) {
+					continue;
+				}
+				InputStream stream = ClickerPlugin.class.getClassLoader().getResourceAsStream(f.getName());
+				OutputStream out = new FileOutputStream(f);
+				byte[] buffer = new byte[8 * 1024];
+				int bytesRead;
+				while ((bytesRead = stream.read(buffer)) != -1) {
+					out.write(buffer, 0, bytesRead);
+				}
+				out.close();
+				stream.close();
+			} catch (Exception e) {
+				log.debug(e + ": " + f);
+			}
+		}
 	}
 
 	@Subscribe

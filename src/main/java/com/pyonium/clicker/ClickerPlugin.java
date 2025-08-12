@@ -181,6 +181,9 @@ public class ClickerPlugin extends Plugin
 
 			// new level reached
 			if (levelBefore < levelAfter) {
+				//regular level up message already plays, but do send some praise
+				String message = praise;
+				sendHighlightedMessage(message);
 				playSound(CLICKER_SOUND_FILE);
 				return;
 			}

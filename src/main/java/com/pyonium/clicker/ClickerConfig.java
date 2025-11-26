@@ -123,15 +123,83 @@ public interface ClickerConfig extends Config
         return 10000;
     }
 
+    @ConfigSection(
+            name = "Other clicks",
+            description = "Settings for other possible click triggers",
+            position = 50
+    )
+    String OTHERCLICKS = "OtherClicks";
+
     @ConfigItem(
+            section = OTHERCLICKS,
             keyName = "onClog",
             name = "Click On Collection Log",
             description = "Rewards Collection Log Slots",
-            position=50
+            position=51
     )
     default boolean onClog()
     {
         return true;
+    }
+
+    @ConfigItem(
+            section = OTHERCLICKS,
+            keyName = "onQuest",
+            name = "Click On Quest",
+            description = "Rewards Quest Completion",
+            position=52
+    )
+    default boolean onQuest()
+    {
+        return false;
+    }
+
+    @ConfigItem(
+            section = OTHERCLICKS,
+            keyName = "onDiary",
+            name = "Click On Achievement Diary Step",
+            description = "Rewards Achievement Diary Step Completion",
+            position=53
+    )
+    default boolean onDiary()
+    {
+        return false;
+    }
+
+    @ConfigItem(
+            section = OTHERCLICKS,
+            keyName = "onCombatTask",
+            name = "Click On Combat Achievement",
+            description = "Rewards Combat Achievement Completion",
+            position=54
+    )
+    default boolean onCombatTask()
+    {
+        return false;
+    }
+
+    @ConfigItem(
+            section = OTHERCLICKS,
+            keyName = "onSlayerTask",
+            name = "Click On Slayer Task",
+            description = "Rewards Slayer Task Completion",
+            position=55
+    )
+    default boolean onSlayerTask()
+    {
+        return false;
+    }
+
+    @ConfigItem(
+            section = OTHERCLICKS,
+            keyName = "onFriendPraise",
+            name = "Click On Friend Praise",
+            description = "Rewards Praise From Friends In Public Chat",
+            position=56
+    )
+    default boolean onFriendPraise()
+    {
+        return false;
     }
 
 

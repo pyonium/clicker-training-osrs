@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.OverheadTextChanged;
 import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.chat.ChatColorType;
 import net.runelite.client.chat.ChatMessageBuilder;
@@ -58,8 +59,11 @@ public class ClickerPlugin extends Plugin
 			CLICKER_SOUND_FILE
 	};
 
-
 	private static final Pattern COLLECTION_LOG_ITEM_REGEX = Pattern.compile("New item added to your collection log:.*");
+    private static final Pattern SLAYER_TASK_REGEX = Pattern.compile("You have completed your task! You killed .*. You gained .*");
+    private static final Pattern COMBAT_TASK_REGEX = Pattern.compile("Congratulations, you've completed a .* combat task: .*");
+    private static final Pattern QUEST_REGEX = Pattern.compile("Congratulations, you've completed a quest: .*");
+    private static final Pattern DIARY_REGEX = Pattern.compile("Well done! You have completed a.* task in the .* area. Your Achievement Diary has been updated.");
 
 	private ClickerSession session;
 
@@ -77,8 +81,13 @@ public class ClickerPlugin extends Plugin
 	//interval mode
 	private int absoluteInterval;
 
-	//misc
+	//other
 	private boolean onClog;
+    private boolean onCombatTask;
+    private boolean onSlayerTask;
+    private boolean onQuest;
+    private boolean onFriendPraise;
+    private boolean onDiary;
 
 	@Override
 	protected void startUp()
@@ -99,6 +108,11 @@ public class ClickerPlugin extends Plugin
 		this.absoluteInterval = config.absoluteInterval();
 
 		this.onClog = config.onClog();
+        this.onCombatTask = config.onCombatTask();
+        this.onSlayerTask = config.onSlayerTask();
+        this.onQuest = config.onQuest();
+        this.onFriendPraise = config.onFriendPraise();
+        this.onDiary = config.onDiary();
 	}
 
 	@Override
@@ -204,10 +218,6 @@ public class ClickerPlugin extends Plugin
 	@Subscribe
 	public void onChatMessage(ChatMessage chatMessage)
 	{
-		if(!onClog)
-		{
-			return;
-		}
 		ChatMessageType msgType = chatMessage.getType();
 		if(!msgType.equals(ChatMessageType.GAMEMESSAGE))
 		{
@@ -215,12 +225,53 @@ public class ClickerPlugin extends Plugin
 		}
 
 		String outputMessage = Text.removeTags(chatMessage.getMessage());
-		if(COLLECTION_LOG_ITEM_REGEX.matcher(outputMessage).matches())
+		if(COLLECTION_LOG_ITEM_REGEX.matcher(outputMessage).matches() && onClog)
 		{
 			sendHighlightedMessage("A new item in your collection log! " + praise);
 			playSound(CLICKER_SOUND_FILE);
 		}
+        if(SLAYER_TASK_REGEX.matcher(outputMessage).matches() && onSlayerTask)
+        {
+            sendHighlightedMessage("Slayer task complete! " + praise);
+            playSound(CLICKER_SOUND_FILE);
+        }
+        if(COMBAT_TASK_REGEX.matcher(outputMessage).matches() && onCombatTask)
+        {
+            sendHighlightedMessage("Combat Achievement complete! " + praise);
+            playSound(CLICKER_SOUND_FILE);
+        }
+        if(QUEST_REGEX.matcher(outputMessage).matches() && onQuest)
+        {
+            sendHighlightedMessage("Quest complete! " + praise);
+            playSound(CLICKER_SOUND_FILE);
+        }
+        if(DIARY_REGEX.matcher(outputMessage).matches() && onDiary)
+        {
+            sendHighlightedMessage("Diary task complete! " + praise);
+            playSound(CLICKER_SOUND_FILE);
+        }
 	}
+
+    @Subscribe
+    public void onOverheadTextChanged(OverheadTextChanged overheadTextChanged)
+    {
+        if (!onFriendPraise)
+        {
+            return;
+        }
+
+        //Check the user is on the friends list
+        Actor actor = overheadTextChanged.getActor();
+        if (actor instanceof Player)
+        {
+            Player player = (Player) actor;
+            if (overheadTextChanged.getOverheadText().matches(praise) && player.isFriend())
+            {
+                playSound(CLICKER_SOUND_FILE);
+            }
+        }
+    }
+
 
 	private void playSound(File f)
 	{
@@ -261,6 +312,11 @@ public class ClickerPlugin extends Plugin
 		this.absoluteInterval = config.absoluteInterval();
 
 		this.onClog = config.onClog();
+        this.onCombatTask = config.onCombatTask();
+        this.onSlayerTask = config.onSlayerTask();
+        this.onQuest = config.onQuest();
+        this.onFriendPraise = config.onFriendPraise();
+        this.onDiary = config.onDiary();
 	}
 
 	private void sendHighlightedMessage(String message) {
